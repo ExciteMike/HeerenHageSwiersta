@@ -35,7 +35,6 @@ pub fn infer_type(environment: &Environment, expr: Ir) -> (Substitutions, TypedI
     );
 
     let substitutions = solve(constraints);
-    eprintln!("subs after solve {substitutions:?}");
     let typed_expr = typed_expr.apply_subst(&substitutions).unwrap_or(typed_expr);
     (substitutions, typed_expr)
 }

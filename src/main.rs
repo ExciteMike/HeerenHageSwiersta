@@ -62,7 +62,6 @@ fn mk_ast() -> Ast {
 /// create an environment to test with
 fn mk_env() -> Environment {
     let print_ty_id = fresh_type_id();
-    eprintln!("print_ty_id {print_ty_id}");
     [
         (
             "len",
