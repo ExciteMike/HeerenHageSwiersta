@@ -30,7 +30,7 @@ pub use solve::solve;
 pub use typedir::TypedIr;
 
 type Assumptions = HashSet<(&'static str, Type)>;
-type Environment = HashMap<&'static str, Scheme>;
+pub type Environment = HashMap<&'static str, Scheme>;
 /// not using an actual Set type because it needs to be hashable
 type TypeSet = Box<[Type]>;
 type Substitutions = HashMap<u32, Type>;
@@ -56,8 +56,5 @@ pub fn fresh_type_id() -> u32 {
 
 /// make a brand new type variable that isn't isn't used anywhere yet
 pub fn fresh_type_var() -> Type {
-    use std::sync::atomic::AtomicU32;
-    static ID: AtomicU32 = AtomicU32::new(0);
-    let id = ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    Type::Unknown(id)
+    Type::Unknown(fresh_type_id())
 }

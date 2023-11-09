@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::{
     fresh_type_var, solve, ApplySubst, Assumptions, Constraints, Environment, Ir, Substitutions,
     Type, TypeSet, TypedIr,
@@ -10,19 +8,17 @@ use itertools::Itertools;
 /// If the expression referred to an identifier that could not be
 /// found in that scope, it panics with a message including those varnames
 #[must_use]
-pub fn infer_type(expr: Ir) -> (Substitutions, TypedIr) {
-    let environment: Environment = [(
-        "len",
-        (HashSet::new(), Type::F(Type::Str.into(), Type::Int.into())),
-    )]
-    .into();
-    let env_types = environment.iter().map(|(_, (_, t))| t.clone()).collect();
+pub fn infer_type(environment: &Environment, expr: Ir) -> (Substitutions, TypedIr) {
+    //let env_types = environment.iter().map(|(_, (_, t))| t.clone()).collect();
     let InferStep {
         assumptions,
         constraints,
         typed_expr,
-    } = infer_type_(&env_types, expr);
+    } = infer_type_(&TypeSet::default(), expr);
 
+    // `ids` -- identifiers that couldn't be found in expr need to come from environment
+    // `constraints` -- if they are in the environment, make sure that expr's usage of them
+    // matches their scheme
     let mut ids = Vec::new();
     let mut constraints = constraints;
     for (name, t) in &assumptions {
@@ -32,7 +28,6 @@ pub fn infer_type(expr: Ir) -> (Substitutions, TypedIr) {
             ids.push(*name);
         }
     }
-
     assert!(
         ids.is_empty(),
         "unrecognized identifiers: {}",
@@ -40,6 +35,7 @@ pub fn infer_type(expr: Ir) -> (Substitutions, TypedIr) {
     );
 
     let substitutions = solve(constraints);
+    eprintln!("subs after solve {substitutions:?}");
     let typed_expr = typed_expr.apply_subst(&substitutions).unwrap_or(typed_expr);
     (substitutions, typed_expr)
 }
@@ -176,9 +172,13 @@ impl InferStep {
         }
     }
     pub fn seq(lhs: Self, rhs: Self) -> Self {
+        let mut assumptions = lhs.assumptions;
+        assumptions.extend(rhs.assumptions);
+        let mut constraints = lhs.constraints;
+        constraints.merge(rhs.constraints);
         InferStep {
-            assumptions: Assumptions::default(),
-            constraints: Constraints::default(),
+            assumptions,
+            constraints,
             typed_expr: TypedIr::Seq(lhs.typed_expr.into(), rhs.typed_expr.into()),
         }
     }

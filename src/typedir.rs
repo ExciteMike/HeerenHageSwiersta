@@ -39,7 +39,8 @@ impl TypedIr {
             | App { ty, .. }
             | Lam { ty, .. }
             | Let { ty, .. } => ty,
-            Add(_, inner) | Seq(_, inner) => inner.ty(),
+            Add(inner, _) => inner.ty(),
+            Seq(_, inner) => inner.ty(),
         }
     }
 
@@ -199,13 +200,24 @@ impl ApplySubst for TypedIr {
                     None
                 }
             }
-            Add(lhs, rhs) | Seq(lhs, rhs) => {
+            Add(lhs, rhs) => {
                 let slhs = lhs.apply_subst(subs);
                 let srhs = rhs.apply_subst(subs);
                 if slhs.is_some() || srhs.is_some() {
                     let lhs = slhs.map_or_else(|| Box::clone(lhs), Box::new);
                     let rhs = srhs.map_or_else(|| Box::clone(rhs), Box::new);
                     Some(Add(lhs, rhs))
+                } else {
+                    None
+                }
+            }
+            Seq(lhs, rhs) => {
+                let slhs = lhs.apply_subst(subs);
+                let srhs = rhs.apply_subst(subs);
+                if slhs.is_some() || srhs.is_some() {
+                    let lhs = slhs.map_or_else(|| Box::clone(lhs), Box::new);
+                    let rhs = srhs.map_or_else(|| Box::clone(rhs), Box::new);
+                    Some(Seq(lhs, rhs))
                 } else {
                     None
                 }

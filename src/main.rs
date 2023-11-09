@@ -1,20 +1,18 @@
 #![warn(clippy::pedantic)]
 
-use heeren_hage_swierstra::{infer_type, Ast};
+use std::collections::HashSet;
 
-fn dump(ast: Ast) -> Result<(), Box<dyn std::error::Error>> {
-    let (_, tree) = infer_type(ast.desugar());
-    println!("{}", tree.to_string()?);
-    Ok(())
-}
+use heeren_hage_swierstra::{fresh_type_id, infer_type, Ast, Environment, Type};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// create the AST to test with
+fn mk_ast() -> Ast {
     // fn f0 x =
     //   fn f1 x =
     //     x = x + 1
     //     x = x + (len "test")
     //   f1 x
-    // f0 10
+    // print "test"
+    // print (f0 10)
     let f1 = Ast::Fn {
         fn_name: "f1",
         parameter: "x",
@@ -44,20 +42,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .into(),
     };
-    let expr = Ast::Do(vec![
+    Ast::Do(vec![
         f0,
         Ast::App {
-            e1: Ast::Id("f0").into(),
-            e2: Ast::LiteralInt(10).into(),
+            e1: Ast::Id("print").into(),
+            e2: Ast::LiteralStr("test").into(),
         },
-    ]);
+        Ast::App {
+            e1: Ast::Id("print").into(),
+            e2: Ast::App {
+                e1: Ast::Id("f0").into(),
+                e2: Ast::LiteralInt(10).into(),
+            }
+            .into(),
+        },
+    ])
+}
 
-    if false {
-        dump(Ast::App {
-            e1: Ast::Id("len").into(),
-            e2: Ast::LiteralStr("abc").into(),
-        })
-    } else {
-        dump(expr)
-    }
+/// create an environment to test with
+fn mk_env() -> Environment {
+    let print_ty_id = fresh_type_id();
+    eprintln!("print_ty_id {print_ty_id}");
+    [
+        (
+            "len",
+            (HashSet::new(), Type::F(Type::Str.into(), Type::Int.into())),
+        ),
+        (
+            "print",
+            (
+                HashSet::from([print_ty_id]),
+                Type::F(Type::Unknown(print_ty_id).into(), Type::Nothing.into()),
+            ),
+        ),
+    ]
+    .into()
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let env = mk_env();
+    let ast = mk_ast();
+    let ir = ast.desugar();
+    let (_, typed_tree) = infer_type(&env, ir);
+    println!("{}", typed_tree.to_string()?);
+    Ok(())
 }
