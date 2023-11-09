@@ -55,6 +55,7 @@ pub fn fresh_type_id() -> u32 {
 }
 
 /// make a brand new type variable that isn't isn't used anywhere yet
+#[must_use]
 pub fn fresh_type_var() -> Type {
     Type::Unknown(fresh_type_id())
 }

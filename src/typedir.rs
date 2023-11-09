@@ -39,8 +39,7 @@ impl TypedIr {
             | App { ty, .. }
             | Lam { ty, .. }
             | Let { ty, .. } => ty,
-            Add(inner, _) => inner.ty(),
-            Seq(_, inner) => inner.ty(),
+            Add(inner, _) | Seq(_, inner) => inner.ty(),
         }
     }
 

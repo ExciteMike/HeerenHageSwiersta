@@ -61,9 +61,6 @@ impl ApplySubst for Type {
                 }
             }
             Unknown(id) => subs.get(id).cloned(),
-            Scheme(alphas, tau) => tau
-                .apply_subst(subs)
-                .map(|tau| Scheme(alphas.clone(), tau.into())),
         }
     }
 }
