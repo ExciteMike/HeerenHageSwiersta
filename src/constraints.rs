@@ -69,17 +69,17 @@ impl Constraints {
     }
     /// add an implicit instance constraint
     /// `instance` - the type that should be an instance of the yet-to-be-determined scheme
-    /// `do_not_generalize` - types to not generalize when they appear in `to_generalize`
+    /// `monomorphics` - types to not generalize when they appear in `to_generalize`
     /// `to_generalize` - type to be generalized into a scheme
     pub fn insert_implicit(
         &mut self,
         instance: Type,
-        do_not_generalize: Box<[Type]>,
+        monomorphics: Box<[Type]>,
         to_generalize: Type,
     ) {
         self.implicit.insert(ImplicitInstance {
             instance,
-            do_not_generalize,
+            monomorphics,
             to_generalize,
         });
     }
@@ -155,19 +155,19 @@ impl ApplySubst for ImplicitInstance {
     fn apply_subst(&self, subs: &Substitutions) -> Option<ImplicitInstance> {
         let ImplicitInstance {
             instance,
-            do_not_generalize,
+            monomorphics,
             to_generalize,
         } = self;
         let u1 = instance.apply_subst(subs);
-        let dng = do_not_generalize.apply_subst(subs);
+        let dng = monomorphics.apply_subst(subs);
         let u2 = to_generalize.apply_subst(subs);
         if u1.is_some() || dng.is_some() || u2.is_some() {
             let instance = u1.unwrap_or_else(|| instance.clone());
-            let do_not_generalize = dng.unwrap_or_else(|| do_not_generalize.clone());
+            let monomorphics = dng.unwrap_or_else(|| monomorphics.clone());
             let to_generalize = u2.unwrap_or_else(|| to_generalize.clone());
             Some(ImplicitInstance {
                 instance,
-                do_not_generalize,
+                monomorphics,
                 to_generalize,
             })
         } else {
@@ -193,12 +193,12 @@ impl ActiveVars for Constraints {
         }
         for ImplicitInstance {
             instance,
-            do_not_generalize,
+            monomorphics,
             to_generalize,
         } in &self.implicit
         {
             active_vars.extend(instance.free_vars().iter());
-            active_vars.extend(&do_not_generalize.free_vars() & &to_generalize.free_vars());
+            active_vars.extend(&monomorphics.free_vars() & &to_generalize.free_vars());
         }
         active_vars
     }

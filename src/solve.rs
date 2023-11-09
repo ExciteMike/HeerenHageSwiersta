@@ -20,7 +20,7 @@ pub fn solve(cs: Constraints) -> Substitutions {
         } else if let Some(imp) = cs.next_implicit() {
             cs.remove_imp(&imp);
             // TODO: it seems to me we could save a couple steps by reinstantiating and unifying right away
-            let scheme = generalize(&imp.do_not_generalize, &imp.to_generalize);
+            let scheme = generalize(&imp.monomorphics, &imp.to_generalize);
             cs.insert_explicit(imp.instance, scheme);
         } else {
             unreachable!("unhandled case in solve! {cs:?}");
