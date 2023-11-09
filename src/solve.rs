@@ -1,4 +1,4 @@
-use crate::{compose, generalize, instantiate, mgu, Constraints, Substitutions};
+use crate::{compose, generalize, instantiate, mgu, ApplySubst, Constraints, Substitutions};
 
 /// attempt to solve a set of constraints
 #[must_use]
@@ -10,7 +10,7 @@ pub fn solve(cs: Constraints) -> Substitutions {
             cs.remove_eq(&c);
             let (t1, t2) = c;
             let s = mgu(&t1, &t2);
-            cs.apply_subst_in_place(&s);
+            cs.apply_subst(&s);
             subs = compose(s, subs);
         } else if let Some(exp) = cs.next_explicit() {
             cs.remove_exp(&exp);

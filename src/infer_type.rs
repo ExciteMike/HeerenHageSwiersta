@@ -13,7 +13,7 @@ pub fn infer_type(environment: &Environment, expr: Ir) -> (Substitutions, TypedI
     let InferStep {
         assumptions,
         constraints,
-        typed_expr,
+        mut typed_expr,
     } = infer_type_(&TypeSet::default(), expr);
 
     // `ids` -- identifiers that couldn't be found in expr need to come from environment
@@ -35,7 +35,7 @@ pub fn infer_type(environment: &Environment, expr: Ir) -> (Substitutions, TypedI
     );
 
     let substitutions = solve(constraints);
-    let typed_expr = typed_expr.apply_subst(&substitutions).unwrap_or(typed_expr);
+    typed_expr.apply_subst(&substitutions);
     (substitutions, typed_expr)
 }
 

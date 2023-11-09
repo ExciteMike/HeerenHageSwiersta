@@ -25,38 +25,23 @@ impl Hash for ExplicitInstance {
         self.scheme.1.hash(state);
     }
 }
+/// Sometimes we do not know the polymorphic type of a declaration in a `let`
+/// expression right away. Implicit instance constraints are our way of
+/// defering an instance constraint until it is known.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ImplicitInstance {
+    /// type that must be a specialization of the yet-to-be-determined scheme
     pub instance: Type,
-    pub do_not_generalize: Box<[Type]>,
+    /// Types that are monomorphic due to environment. These do not become
+    /// quantified variables when we generalize `to_generalize`.
+    pub monomorphics: Box<[Type]>,
+    /// pseudo-type-scheme. Type variables within it, excepting those in
+    /// `monomorphics`, will be made into quantified types, then the resulting
+    /// scheme will be instantiated and unified with `instance`
     pub to_generalize: Type,
 }
 
-/// transform a set in place by mapping elements
-fn set_xform<T, F>(set: &mut HashSet<T>, f: F)
-where
-    T: PartialEq + Eq + Hash + Clone,
-    F: Fn(&T) -> Option<T>,
-{
-    let mut replacements = Vec::new();
-    for v in &*set {
-        if let Some(new) = f(v) {
-            replacements.push((v.clone(), new));
-        }
-    }
-    for (from, to) in replacements {
-        set.remove(&from);
-        set.insert(to);
-    }
-}
-
 impl Constraints {
-    /// apply substitutions to the types appearing in constraints
-    pub fn apply_subst_in_place(&mut self, subs: &Substitutions) {
-        set_xform(&mut self.equality, |x| x.apply_subst(subs));
-        set_xform(&mut self.explicit, |x| x.apply_subst(subs));
-        set_xform(&mut self.implicit, |x| x.apply_subst(subs));
-    }
     /// add an equality constraint
     pub fn insert_eq(&mut self, left: Type, right: Type) {
         self.equality.insert((left, right));
@@ -132,47 +117,27 @@ impl Constraints {
         self.implicit.remove(value)
     }
 }
+impl ApplySubst for Constraints {
+    /// apply substitutions to the types appearing in constraints
+    fn apply_subst(&mut self, subs: &Substitutions) {
+        self.equality.apply_subst(subs);
+        self.explicit.apply_subst(subs);
+        self.implicit.apply_subst(subs);
+    }
+}
 
 impl ApplySubst for ExplicitInstance {
-    fn apply_subst(&self, subs: &Substitutions) -> Option<ExplicitInstance> {
-        let ExplicitInstance { instance, scheme } = self;
-        let st1 = instance.apply_subst(subs);
-        let st2 = scheme.1.apply_subst(subs);
-        if st1.is_some() || st2.is_some() {
-            let instance = st1.unwrap_or_else(|| instance.clone());
-            let scheme_ty = st2.unwrap_or_else(|| scheme.1.clone());
-            Some(ExplicitInstance {
-                instance,
-                scheme: (scheme.0.clone(), scheme_ty),
-            })
-        } else {
-            None
-        }
+    fn apply_subst(&mut self, subs: &Substitutions) {
+        self.instance.apply_subst(subs);
+        self.scheme.1.apply_subst(subs);
     }
 }
 
 impl ApplySubst for ImplicitInstance {
-    fn apply_subst(&self, subs: &Substitutions) -> Option<ImplicitInstance> {
-        let ImplicitInstance {
-            instance,
-            monomorphics,
-            to_generalize,
-        } = self;
-        let u1 = instance.apply_subst(subs);
-        let dng = monomorphics.apply_subst(subs);
-        let u2 = to_generalize.apply_subst(subs);
-        if u1.is_some() || dng.is_some() || u2.is_some() {
-            let instance = u1.unwrap_or_else(|| instance.clone());
-            let monomorphics = dng.unwrap_or_else(|| monomorphics.clone());
-            let to_generalize = u2.unwrap_or_else(|| to_generalize.clone());
-            Some(ImplicitInstance {
-                instance,
-                monomorphics,
-                to_generalize,
-            })
-        } else {
-            None
-        }
+    fn apply_subst(&mut self, subs: &Substitutions) {
+        self.instance.apply_subst(subs);
+        self.monomorphics.apply_subst(subs);
+        self.to_generalize.apply_subst(subs);
     }
 }
 

@@ -39,9 +39,7 @@ type Substitutions = HashMap<u32, Type>;
 #[must_use]
 pub fn compose(mut s1: Substitutions, mut s2: Substitutions) -> Substitutions {
     for value in s2.values_mut() {
-        if let Some(new_value) = value.apply_subst(&s1) {
-            *value = new_value;
-        }
+        value.apply_subst(&s1);
     }
     s1.extend(s2);
     s1

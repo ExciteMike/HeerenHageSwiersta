@@ -108,7 +108,7 @@ impl TypedIr {
             LiteralInt(i, ty) => write!(buf, "{i}:{ty:?}")?,
             Id(s, ty) => write!(buf, "{s}:{ty:?}")?,
             App { e1, e2, ty } => {
-                write!(buf, "{}({}):{ty:?}", e1.to_string()?, e2.to_string()?,)?;
+                write!(buf, "{} ( {} ):{ty:?}", e1.to_string()?, e2.to_string()?,)?;
             }
             Lam { binding, body, ty } => {
                 let body = body.to_string_(&increased_indent)?;
@@ -144,82 +144,33 @@ impl TypedIr {
     }
 }
 impl ApplySubst for TypedIr {
-    fn apply_subst(&self, subs: &Substitutions) -> Option<Self>
-    where
-        Self: Sized,
-    {
+    fn apply_subst(&mut self, subs: &Substitutions) {
         use TypedIr::*;
         match self {
-            Nop(_) | LiteralInt(_, _) | LiteralStr(_, _) => None,
-            Id(name, ty) => ty.apply_subst(subs).map(|ty| Id(name, ty)),
-            App { e1, e2, ty } => {
-                let se1 = e1.apply_subst(subs);
-                let se2 = e2.apply_subst(subs);
-                let sty = ty.apply_subst(subs);
-                if se1.is_some() || se2.is_some() || sty.is_some() {
-                    let e1 = se1.map_or_else(|| Box::clone(e1), Box::new);
-                    let e2 = se2.map_or_else(|| Box::clone(e2), Box::new);
-                    let ty = sty.unwrap_or_else(|| ty.clone());
-                    Some(App { e1, e2, ty })
-                } else {
-                    None
-                }
-            }
-            Lam { binding, body, ty } => {
-                let subbed_body = body.apply_subst(subs);
-                let subbed_ty = ty.apply_subst(subs);
-                if subbed_body.is_some() || subbed_ty.is_some() {
-                    let body = subbed_body.map_or_else(|| Box::clone(body), Box::new);
-                    let ty = subbed_ty.unwrap_or_else(|| ty.clone());
-                    Some(Lam { binding, body, ty })
-                } else {
-                    None
-                }
-            }
-            Let {
+            Nop(_) | LiteralInt(_, _) | LiteralStr(_, _) => (),
+            Id(_, ty) => ty.apply_subst(subs),
+            App { e1, e2, ty }
+            | Let {
                 e1,
-                binding,
+                binding: _,
                 e2,
                 ty,
             } => {
-                let se1 = e1.apply_subst(subs);
-                let se2 = e2.apply_subst(subs);
-                let sty = ty.apply_subst(subs);
-                if se1.is_some() || se2.is_some() || sty.is_some() {
-                    let e1 = se1.map_or_else(|| Box::clone(e1), Box::new);
-                    let e2 = se2.map_or_else(|| Box::clone(e2), Box::new);
-                    let ty = sty.unwrap_or_else(|| ty.clone());
-                    Some(Let {
-                        e1,
-                        binding,
-                        e2,
-                        ty,
-                    })
-                } else {
-                    None
-                }
+                e1.apply_subst(subs);
+                e2.apply_subst(subs);
+                ty.apply_subst(subs);
             }
-            Add(lhs, rhs) => {
-                let slhs = lhs.apply_subst(subs);
-                let srhs = rhs.apply_subst(subs);
-                if slhs.is_some() || srhs.is_some() {
-                    let lhs = slhs.map_or_else(|| Box::clone(lhs), Box::new);
-                    let rhs = srhs.map_or_else(|| Box::clone(rhs), Box::new);
-                    Some(Add(lhs, rhs))
-                } else {
-                    None
-                }
+            Lam {
+                binding: _,
+                body,
+                ty,
+            } => {
+                body.apply_subst(subs);
+                ty.apply_subst(subs);
             }
-            Seq(lhs, rhs) => {
-                let slhs = lhs.apply_subst(subs);
-                let srhs = rhs.apply_subst(subs);
-                if slhs.is_some() || srhs.is_some() {
-                    let lhs = slhs.map_or_else(|| Box::clone(lhs), Box::new);
-                    let rhs = srhs.map_or_else(|| Box::clone(rhs), Box::new);
-                    Some(Seq(lhs, rhs))
-                } else {
-                    None
-                }
+            Add(lhs, rhs) | Seq(lhs, rhs) => {
+                lhs.apply_subst(subs);
+                rhs.apply_subst(subs);
             }
         }
     }
