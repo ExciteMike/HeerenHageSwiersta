@@ -5,7 +5,7 @@ use std::{
 
 use crate::{Substitutions, Type};
 
-/// Trait for applying `Substitutions` without needing mutability or ownership.
+/// Trait for applying `Substitutions`
 pub trait ApplySubst {
     fn apply_subst(&mut self, subs: &Substitutions);
 }
